@@ -20,12 +20,30 @@
 
 ## 安装
 
-```bash
-# 1. clone 到 skills 目录
-git clone https://github.com/yilane/video-note-skill.git ~/.agents/skills/video-note-skill
+### 方式一:对话式安装(推荐)
 
-# 2. 装 Python 依赖
-pip install -r ~/.agents/skills/video-note-skill/scripts/requirements.txt
+直接对你正在用的 AI 助手(Claude Code / Codex 等)说一句:
+
+> 帮我安装这个 Skill:https://github.com/yilane/video-note-skill
+
+AI 会自动判断你当前使用的 agent 工具的全局 skill 目录并完成安装。它会:
+
+1. **定位全局 skill 目录**(按 agent 工具,自动检测):
+   | Agent 工具 | 全局 skill 目录 |
+   |---|---|
+   | Claude Code | `~/.claude/skills/` |
+   | Codex | `~/.codex/skills/` |
+   | 其他 | 该工具约定的 skills 目录 |
+2. `git clone` 到该目录下的 `video-note-skill/`
+3. `pip install -r .../scripts/requirements.txt`
+4. 检查 `ffmpeg`(本地视频转录 / 截图需要)
+
+### 方式二:手动安装
+
+```bash
+# <SKILL_DIR> = 你的 agent 全局 skill 目录(见上表)
+git clone https://github.com/yilane/video-note-skill.git <SKILL_DIR>/video-note-skill
+pip install -r <SKILL_DIR>/video-note-skill/scripts/requirements.txt
 ```
 
 > 本地视频转录 / 截图还需系统 `ffmpeg`:`winget install ffmpeg`(Windows)/ `brew install ffmpeg`(macOS)/ `apt install ffmpeg`(Linux)。
