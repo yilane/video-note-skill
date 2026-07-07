@@ -1,0 +1,17 @@
+# Python 缓存
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# 临时/测试产物(脚本输出的转录 json、截图等)
+vn_*.json
+note_results/
+images/
+
+# 系统
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
