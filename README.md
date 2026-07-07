@@ -21,11 +21,11 @@
 ## 安装
 
 ```bash
-# 1. clone 到 skills 目录(目录名用 video-note,不要带 -skill 后缀)
-git clone https://github.com/yilane/video-note-skill.git ~/.agents/skills/video-note
+# 1. clone 到 skills 目录
+git clone https://github.com/yilane/video-note-skill.git ~/.agents/skills/video-note-skill
 
 # 2. 装 Python 依赖
-pip install -r ~/.agents/skills/video-note/scripts/requirements.txt
+pip install -r ~/.agents/skills/video-note-skill/scripts/requirements.txt
 ```
 
 > 本地视频转录 / 截图还需系统 `ffmpeg`:`winget install ffmpeg`(Windows)/ `brew install ffmpeg`(macOS)/ `apt install ffmpeg`(Linux)。
@@ -52,7 +52,7 @@ Claude 会自动触发 skill:获取转录 → 选风格 → 生成笔记 →(可
 ## 目录结构
 
 ```
-video-note/
+video-note-skill/
 ├── SKILL.md                    # 入口(触发词 + 工作流)
 ├ prompts/                      # 提示词层(L0)
 │   ├── base.md                 # 通用底座
