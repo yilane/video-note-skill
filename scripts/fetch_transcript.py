@@ -6,6 +6,7 @@
   - 本地视频文件(.mp4/.mkv 等)     → ffmpeg 提取音频 → ASR
   - YouTube URL                    → youtube-transcript-api 字幕直取
   - B站 URL                        → B站 player API 字幕直取
+  - 抖音 URL                      → 下载音频 → ASR
   - 其他平台 / 无字幕              → 报错引导(留待 L2 的下载能力)
 
 stdout 输出 TranscriptResult JSON(含 segment_text 字段)。
@@ -30,26 +31,40 @@ except Exception:
 import audio  # noqa: E402
 from models import TranscriptResult  # noqa: E402
 from url_parser import detect_platform  # noqa: E402
-from sources import youtube, bilibili, bcut, kuaishou  # noqa: E402
+from sources import youtube, bilibili, bcut, kuaishou, douyin  # noqa: E402
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="获取视频/音频的转录文本(字幕直取或云端 ASR)。",
     )
-    parser.add_argument("input", help="视频 URL(YouTube/B站)或本地音视频文件路径")
+    parser.add_argument("input", help="视频 URL(YouTube/B站/抖音)或本地音视频文件路径")
     parser.add_argument("-o", "--output", help="额外把 JSON 保存到该文件")
     parser.add_argument("--asr", choices=["bcut", "kuaishou"], default="bcut",
                         help="音频 ASR 引擎(默认 bcut)")
     parser.add_argument("--bili-cookie", help="B站 SESSDATA cookie(AI 字幕);默认读 BILI_SESSDATA")
+    parser.add_argument("--douyin-cookie", help="抖音 cookie 兜底;默认读 DOUYIN_COOKIE")
+    parser.add_argument("--browser-cookie", choices=["auto", "chrome", "edge", "firefox"], default="auto",
+                        help="抖音需要 fresh cookie 时自动从浏览器读取(默认 auto: Chrome→Edge)")
+    parser.add_argument("--no-browser-cookie", action="store_true",
+                        help="禁用抖音浏览器 cookie 自动读取")
     parser.add_argument("--proxy", help="代理 URL;默认读 HTTPS_PROXY/HTTP_PROXY")
     args = parser.parse_args()
 
     proxy = args.proxy or os.environ.get("HTTPS_PROXY") or os.environ.get("HTTP_PROXY")
     bili_cookie = args.bili_cookie or os.environ.get("BILI_SESSDATA")
+    douyin_cookie = args.douyin_cookie or os.environ.get("DOUYIN_COOKIE")
 
     try:
-        result = _route(args.input, asr=args.asr, bili_cookie=bili_cookie, proxy=proxy)
+        result = _route(
+            args.input,
+            asr=args.asr,
+            bili_cookie=bili_cookie,
+            douyin_cookie=douyin_cookie,
+            use_browser_cookie=not args.no_browser_cookie,
+            browser_cookie=args.browser_cookie,
+            proxy=proxy,
+        )
     except RuntimeError as e:
         print(f"[fetch_transcript] 失败: {e}", file=sys.stderr)
         return 1
@@ -77,7 +92,9 @@ def main() -> int:
     return 0
 
 
-def _route(input_arg: str, asr: str, bili_cookie: Optional[str], proxy: Optional[str]) -> Optional[TranscriptResult]:
+def _route(input_arg: str, asr: str, bili_cookie: Optional[str], proxy: Optional[str],
+           douyin_cookie: Optional[str] = None, use_browser_cookie: bool = True,
+           browser_cookie: Optional[str] = "auto") -> Optional[TranscriptResult]:
     # ① 本地文件
     if os.path.exists(input_arg):
         return _route_file(input_arg, asr)
@@ -107,9 +124,25 @@ def _route(input_arg: str, asr: str, bili_cookie: Optional[str], proxy: Optional
                     "B站字幕获取与音频下载均失败:可能无字幕、需登录(BILI_SESSDATA)或被风控。"
                 )
             return result
+        if platform == "douyin":
+            print("[fetch_transcript] 抖音暂不支持字幕直取,下载音频→ASR", file=sys.stderr)
+            result = _douyin_download_asr(
+                input_arg,
+                asr,
+                proxy,
+                cookie=douyin_cookie,
+                use_browser_cookie=use_browser_cookie,
+                browser_cookie=browser_cookie,
+            )
+            if result is None:
+                raise RuntimeError(
+                    "抖音音频下载或 ASR 失败:可能链接失效、视频需要登录、被风控或接口参数已变化。"
+                    "可设置 DOUYIN_COOKIE 后重试。"
+                )
+            return result
         raise RuntimeError(
             f"暂不支持平台 [{platform or '未知'}] 的自动转录。"
-            "已支持:YouTube / B站(URL 字幕直取 + 下载兜底)、本地音视频文件(云端 ASR)。"
+            "已支持:YouTube / B站(URL 字幕直取 + 下载兜底)、抖音(下载音频 + ASR)、本地音视频文件(云端 ASR)。"
             "可提供字幕文件(.srt)或本地音频。"
         )
 
@@ -130,6 +163,27 @@ def _fallback_download_asr(url: str, asr: str, proxy: Optional[str],
         info = download_audio(url, cookie=cookie, proxy=proxy)
     except RuntimeError as e:
         print(f"[fetch_transcript] 下载音频失败: {e}", file=sys.stderr)
+        return None
+    audio_path = info["audio_path"]
+    if asr == "kuaishou":
+        return kuaishou.transcript(audio_path)
+    return bcut.transcript(audio_path)
+
+
+def _douyin_download_asr(url: str, asr: str, proxy: Optional[str],
+                         cookie: Optional[str] = None, use_browser_cookie: bool = True,
+                         browser_cookie: Optional[str] = "auto") -> Optional[TranscriptResult]:
+    """下载抖音音频走云端 ASR。失败返回 None。"""
+    try:
+        info = douyin.download_audio(
+            url,
+            cookie=cookie,
+            proxy=proxy,
+            use_browser_cookie=use_browser_cookie,
+            browser_cookie=browser_cookie,
+        )
+    except RuntimeError as e:
+        print(f"[fetch_transcript] 下载抖音音频失败: {e}", file=sys.stderr)
         return None
     audio_path = info["audio_path"]
     if asr == "kuaishou":

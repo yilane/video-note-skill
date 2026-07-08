@@ -12,6 +12,7 @@ from typing import Optional
 import yt_dlp
 
 from bili_patch import apply_bilibili_dm_img_patch
+from sources import douyin
 from url_parser import detect_platform
 
 # 模块加载时应用 B站 patch(幂等、防御性)
@@ -19,11 +20,22 @@ apply_bilibili_dm_img_patch()
 
 
 def download_audio(url: str, output_dir: Optional[str] = None, cookie: Optional[str] = None,
-                   proxy: Optional[str] = None) -> dict:
+                   proxy: Optional[str] = None, use_browser_cookie: bool = True,
+                   browser_cookie: Optional[str] = "auto") -> dict:
     """下载音频(mp3,64kbps),返回 {audio_path, video_id, title, duration}。
 
     失败抛 RuntimeError。
     """
+    if detect_platform(url) == "douyin":
+        return douyin.download_audio(
+            url,
+            output_dir=output_dir,
+            cookie=cookie,
+            proxy=proxy,
+            use_browser_cookie=use_browser_cookie,
+            browser_cookie=browser_cookie,
+        )
+
     output_dir = output_dir or tempfile.mkdtemp(prefix="video_note_dl_")
     os.makedirs(output_dir, exist_ok=True)
 
@@ -58,8 +70,19 @@ def download_audio(url: str, output_dir: Optional[str] = None, cookie: Optional[
 
 
 def download_video(url: str, output_dir: Optional[str] = None, cookie: Optional[str] = None,
-                   proxy: Optional[str] = None) -> str:
+                   proxy: Optional[str] = None, use_browser_cookie: bool = True,
+                   browser_cookie: Optional[str] = "auto") -> str:
     """下载视频(mp4),返回视频路径。供截图用。失败抛 RuntimeError。"""
+    if detect_platform(url) == "douyin":
+        return douyin.download_video(
+            url,
+            output_dir=output_dir,
+            cookie=cookie,
+            proxy=proxy,
+            use_browser_cookie=use_browser_cookie,
+            browser_cookie=browser_cookie,
+        )
+
     output_dir = output_dir or tempfile.mkdtemp(prefix="video_note_dl_")
     os.makedirs(output_dir, exist_ok=True)
 
