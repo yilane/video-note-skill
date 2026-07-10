@@ -122,8 +122,13 @@ def download_audio(
     proxy: Optional[str] = None,
     use_browser_cookie: bool = True,
     browser_cookie: Optional[str] = "auto",
+    output_name: Optional[str] = None,
 ) -> dict:
-    """下载抖音音频,返回 {audio_path, video_id, title, duration}。"""
+    """下载抖音音频,返回 {audio_path, video_id, title, duration}。
+
+    output_name 指定时,文件名用 ``<output_name>.mp3``(不含扩展名);
+    否则回退 ``<aweme_id>.mp3``。调用方应自行清洗 output_name。
+    """
     output_dir = output_dir or tempfile.mkdtemp(prefix="video_note_douyin_")
     os.makedirs(output_dir, exist_ok=True)
 
@@ -139,7 +144,8 @@ def download_audio(
     if not audio_url:
         raise RuntimeError("抖音详情中没有可用音频地址")
 
-    output_path = os.path.join(output_dir, f"{video_id}.mp3")
+    file_stem = output_name or video_id
+    output_path = os.path.join(output_dir, f"{file_stem}.mp3")
     _download_file(audio_url, output_path, cookie=cookie, proxy=proxy)
     return {
         "audio_path": output_path,
@@ -156,8 +162,13 @@ def download_video(
     proxy: Optional[str] = None,
     use_browser_cookie: bool = True,
     browser_cookie: Optional[str] = "auto",
+    output_name: Optional[str] = None,
 ) -> str:
-    """下载抖音视频(mp4),返回本地路径。"""
+    """下载抖音视频(mp4),返回本地路径。
+
+    output_name 指定时,文件名用 ``<output_name>.mp4``(不含扩展名);
+    否则回退 ``<aweme_id>.mp4``。已存在同名文件时跳过下载直接返回。
+    """
     output_dir = output_dir or tempfile.mkdtemp(prefix="video_note_douyin_")
     os.makedirs(output_dir, exist_ok=True)
 
@@ -169,7 +180,8 @@ def download_video(
         browser_cookie=browser_cookie,
     )
     video_id = detail["aweme_id"]
-    output_path = os.path.join(output_dir, f"{video_id}.mp4")
+    file_stem = output_name or video_id
+    output_path = os.path.join(output_dir, f"{file_stem}.mp4")
     if os.path.exists(output_path):
         return output_path
 

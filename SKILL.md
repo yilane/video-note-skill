@@ -92,6 +92,24 @@ python {baseDir}/scripts/extract_screenshots.py '<笔记.md>' '<视频文件或U
 
 脚本用 ffmpeg 按时间戳截图,把标记替换为 `![](images/screenshot_xxx.jpg)`,就地更新笔记(或 `-o` 另存)。视频可为本地路径或 URL(URL 自动下载)。无 ffmpeg 或某帧失败时保留占位。
 
+## 只下载视频 / 只提取文案(不走笔记流程)
+
+如果只想要视频文件或文案、不需要生成笔记,用这两个独立入口:
+
+- **只提取文案**(B站/抖音/YouTube):`fetch_transcript.py` 本就是「只要文案」的入口,不做笔记。直接跑,取输出 JSON 的 `segment_text` 字段即可:
+  ```bash
+  python {baseDir}/scripts/fetch_transcript.py '<url>'
+  ```
+  **输出必须原样,不要整理**:把 `full_text`(连续段落)或 `segment_text`(带时间戳逐句)原样交给用户,保持原文的措辞、顺序与结构——不要改写成列表 / 加粗小标题 / 按主题重分段 / 删除口语词(「对」「嗯」等)/ 归纳总结。仅允许做**明显的 ASR 字符还原**(如 `F 2`→`F2`、`alt 加一`→`Alt+1`、`windows`→`Windows`),且不得改变结构与内容。只有当用户**明确**要求"整理 / 总结 / 做笔记 / 划重点 / 拆解"时,才进入下面的笔记流程。
+- **只下载视频 / 音频**(B站/抖音/YouTube):用 `download.py`。默认下视频(mp4)到当前工作目录、文件名用视频标题(取不到回退 video_id);stdout 打印最终文件路径(一行)。
+  ```bash
+  python {baseDir}/scripts/download.py '<url>'                    # 下视频到当前目录
+  python {baseDir}/scripts/download.py '<url>' -o <目录>           # 指定输出目录
+  python {baseDir}/scripts/download.py '<url>' --audio            # 只下音频(mp3)
+  python {baseDir}/scripts/download.py '<url>' -O <文件名>         # 自定义文件名(不含扩展名)
+  ```
+  支持 `--bili-cookie` / `--douyin-cookie` / `--browser-cookie {auto|chrome|edge|firefox}` / `--no-browser-cookie` / `--proxy`(语义同 `fetch_transcript.py`)。B站自动应用 dm_img patch 绕过 412;抖音默认免登录、失败自动读取 Chrome/Edge 的 `.douyin.com` fresh cookie。下载视频(B站合并音视频、`--audio` 转码)需系统 `ffmpeg`。
+
 ## 输出规范
 
 - **中文**撰写;专有名词 / 技术术语 / 品牌名 / 人名保留**英文**
@@ -112,4 +130,4 @@ python {baseDir}/scripts/extract_screenshots.py '<笔记.md>' '<视频文件或U
 ## 与其他 skill 的关系
 
 - **`baoyu-youtube-transcript`**:YouTube 字幕兜底。本 skill 已自带 youtube-transcript-api + yt-dlp 下载兜底,被反爬时可改用此 skill。
-- 本 skill 已实现 **L0(提示词)+ L1(自动转录)+ L2(下载兜底 + 截图)**,覆盖视频 URL / 本地音视频 / 字幕文本全场景。
+- 本 skill 已实现 **L0(提示词)+ L1(自动转录)+ L2(下载兜底 + 截图)**,覆盖视频 URL / 本地音视频 / 字幕文本全场景。另提供独立入口:`fetch_transcript.py`(只提取文案)、`download.py`(只下载视频/音频),均不走笔记流程。
